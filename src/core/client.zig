@@ -78,6 +78,17 @@ pub const Client = struct {
     }
 
     fn tryEndpoint(self: *Client, ep: *const DatabaseEndpoint) !bool {
+        // ╔══════════════════════════════════════════════════════════════════════════╗
+        // ║ Function: Try Endpoint                                                   ║
+        // ║ Brief   : Attempts Info `statistics` against all hosts in the endpoint   ║
+        // ║ Params  :                                                                ║
+        // ║   - self: client instance                                                ║
+        // ║   - ep  : endpoint containing hosts/port/timeouts                        ║
+        // ║ Usage   : if (try self.tryEndpoint(&self.cfg.active)) return true;       ║
+        // ║ Returns :                                                                ║
+        // ║   - Success: true if any host returns a non-empty response               ║
+        // ║   - Failure: false if none respond; may bubble AeroError on allocation   ║
+        // ╚══════════════════════════════════════════════════════════════════════════╝
         for (ep.hosts) |host| {
             const resp = sendInfo(self.allocator, host, ep.port, "statistics", ep.connect_timeout_ms, &self.logger) catch {
                 continue;

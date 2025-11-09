@@ -58,6 +58,15 @@ pub const Logger = struct {
         return "\x1b[0m";
     }
 
+    // ╔══════════════════════════════════════════════════════════════════════════╗
+    // ║ Function: Case-Insensitive Contains                                      ║
+    // ║ Brief   : Checks if `haystack` contains `needle` (ASCII-insensitive)     ║
+    // ║ Params  : haystack, needle                                               ║
+    // ║ Usage   : if (hasKeywordInsensitive(msg, "password")) { ... }            ║
+    // ║ Returns :                                                                ║
+    // ║   - Success: true if match found                                         ║
+    // ║   - Failure: false otherwise                                             ║
+    // ╚══════════════════════════════════════════════════════════════════════════╝
     fn hasKeywordInsensitive(haystack: []const u8, needle: []const u8) bool {
         if (needle.len == 0 or haystack.len < needle.len) return false;
         var i: usize = 0;
@@ -77,10 +86,26 @@ pub const Logger = struct {
         return false;
     }
 
+    // ╔══════════════════════════════════════════════════════════════════════════╗
+    // ║ Function: Contains Sensitive Tokens                                      ║
+    // ║ Brief   : Detects common secret/credential patterns in text              ║
+    // ║ Params  : s                                                              ║
+    // ║ Usage   : if (containsSensitive(msg)) { /* redact */ }                   ║
+    // ║ Returns : true when a sensitive token is present; false otherwise        ║
+    // ╚══════════════════════════════════════════════════════════════════════════╝
     fn containsSensitive(s: []const u8) bool {
         return hasKeywordInsensitive(s, "password") or hasKeywordInsensitive(s, "passwd") or hasKeywordInsensitive(s, "pwd") or hasKeywordInsensitive(s, "secret") or hasKeywordInsensitive(s, "token") or hasKeywordInsensitive(s, "bearer ") or hasKeywordInsensitive(s, "authorization:") or hasKeywordInsensitive(s, "x-api-key") or hasKeywordInsensitive(s, "api_key") or hasKeywordInsensitive(s, "secret_access_key") or hasKeywordInsensitive(s, "private_key") or hasKeywordInsensitive(s, "-----begin");
     }
 
+    // ╔══════════════════════════════════════════════════════════════════════════╗
+    // ║ Function: Sanitize Log Message                                           ║
+    // ║ Brief   : Redacts message if it contains sensitive tokens                ║
+    // ║ Params  : self, s                                                        ║
+    // ║ Usage   : const safe = logger.sanitize("password=...\n");                ║
+    // ║ Returns :                                                                ║
+    // ║   - Success: original message or "[REDACTED]"                            ║
+    // ║   - Failure: N/A                                                         ║
+    // ╚══════════════════════════════════════════════════════════════════════════╝
     fn sanitize(self: *const Logger, s: []const u8) []const u8 {
         _ = self; // no per-instance state yet
         if (containsSensitive(s)) return "[REDACTED]";

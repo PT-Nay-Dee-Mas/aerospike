@@ -6,6 +6,7 @@ const detectEditionFromEnvOrDefault = @import("aero_core").detectEditionFromEnvO
 const Credentials = @import("credentials.zig").Credentials;
 const DatabaseEndpoint = @import("database.zig").DatabaseEndpoint;
 const Logger = logging.Logger;
+const Schema = @import("schema.zig").Schema;
 
 pub const ClientConfig = struct {
     edition: Edition = .community,
@@ -13,6 +14,7 @@ pub const ClientConfig = struct {
     passive: ?DatabaseEndpoint = null,
     active_credentials: Credentials,
     passive_credentials: ?Credentials = null,
+    schema: ?Schema = null,
 
     // ╔═══════════════════════════════════════════════════════════════════════════╗
     // ║ Function: Initialize Default Config                                       ║
@@ -41,12 +43,20 @@ pub const ClientConfig = struct {
             passive_creds_opt = try Credentials.fromEnv(allocator, "AEROSPIKE_PASSIVE_", &logger);
         }
 
+        const ns_probe = std.process.getEnvVarOwned(allocator, "AEROSPIKE_NAMESPACE") catch null;
+        defer if (ns_probe) |v| allocator.free(v);
+        var schema_opt: ?Schema = null;
+        if (ns_probe != null) {
+            schema_opt = Schema.fromEnv(allocator, &logger) catch null;
+        }
+
         return .{
             .edition = edition,
             .active = active,
             .passive = passive_ep_opt,
             .active_credentials = active_creds,
             .passive_credentials = passive_creds_opt,
+            .schema = schema_opt,
         };
     }
 };

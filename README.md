@@ -169,6 +169,16 @@ Set environment variables to configure endpoints and credentials.
 | `AEROSPIKE_PASSIVE_READ_TIMEOUT_MS` | `u32` | No | Defaults to `5000`. |
 | `AEROSPIKE_PASSIVE_CLUSTER_NAME` | string | No | Optional cluster name. |
 
+Schema (application-level):
+
+| Key | Type | Required | Notes |
+| --- | --- | --- | --- |
+| `AEROSPIKE_NAMESPACE` | string | Yes (if schema used) | Namespace name (e.g., `test`). |
+| `AEROSPIKE_SET` | string | No | Default set name; optional. |
+| `AEROSPIKE_DEFAULT_TTL_SECONDS` | `u32` | No | Default record TTL; `null`/missing means server default. |
+| `AEROSPIKE_ALLOWED_BINS` | CSV strings | No | Whitelist of bin names expected by the app. |
+| `AEROSPIKE_SECONDARY_INDEXES` | CSV strings | No | Index names (declarative only; not auto-created). |
+
 ## API Reference
 Public APIs available via `const aerospike = @import("aerospike");`.
 
