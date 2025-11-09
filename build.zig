@@ -56,6 +56,35 @@ pub fn build(b: *std.Build) void {
         .target = target,
     });
 
+    var pkg_name: []const u8 = "aerospike";
+    var pkg_version: []const u8 = "0.0.0";
+    if (std.fs.cwd().readFileAlloc(b.allocator, "build.zig.zon", 64 * 1024)) |data| {
+        defer b.allocator.free(data);
+        if (std.mem.indexOf(u8, data, ".name = .")) |pos| {
+            const rest = data[pos + ".name = .".len ..];
+            const end = std.mem.indexOfAny(u8, rest, ",\n") orelse rest.len;
+            pkg_name = rest[0..end];
+        }
+        if (std.mem.indexOf(u8, data, ".version = ")) |pos2| {
+            const rest2 = data[pos2 + ".version = ".len ..];
+            if (rest2.len > 1 and rest2[0] == '"') {
+                if (std.mem.indexOfScalar(u8, rest2[1..], '"')) |e| {
+                    pkg_version = rest2[1..][0..e];
+                }
+            }
+        }
+    } else |_| {}
+
+    const pkg_opts = b.addOptions();
+    pkg_opts.addOption([]const u8, "pkg_name", pkg_name);
+    pkg_opts.addOption([]const u8, "pkg_version", pkg_version);
+
+    mod.addOptions("pkg", pkg_opts);
+    core_mod.addOptions("pkg", pkg_opts);
+    config_mod.addOptions("pkg", pkg_opts);
+    log_mod.addOptions("pkg", pkg_opts);
+    net_mod.addOptions("pkg", pkg_opts);
+    util_mod.addOptions("pkg", pkg_opts);
     // Wire imports so the aerospike module can access sub-modules by name
     mod.addImport("aero_core", core_mod);
     mod.addImport("aero_config", config_mod);
@@ -94,9 +123,10 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("src/main.zig"),
             .target = target,
             .optimize = optimize,
-            .imports = &.{ .{ .name = "aerospike", .module = mod } },
+            .imports = &.{.{ .name = "aerospike", .module = mod }},
         }),
     });
+    exe.root_module.addOptions("pkg", pkg_opts);
 
     // This declares intent for the executable to be installed into the
     // install prefix when running `zig build` (i.e. when executing the default
@@ -155,8 +185,9 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/ffi/c.zig"),
         .target = target,
         .optimize = optimize,
-        .imports = &.{ .{ .name = "aerospike", .module = mod } },
+        .imports = &.{.{ .name = "aerospike", .module = mod }},
     });
+    ffi_mod.addOptions("pkg", pkg_opts);
 
     const shared = b.addLibrary(.{
         .name = "aerospike", // produces libaerospike.{dylib,so}

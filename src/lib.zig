@@ -2,6 +2,7 @@ const std = @import("std");
 const core = @import("aero_core");
 const cfg = @import("aero_config");
 const logging = @import("aero_log");
+const pkg = @import("pkg");
 
 pub const Edition = core.Edition;
 pub const detectEditionFromEnvOrDefault = @import("aero_core").detectEditionFromEnvOrDefault;
@@ -22,5 +23,5 @@ pub const Logger = logging.Logger;
 // ║   - Failure: none                                                            ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 pub fn version() []const u8 {
-    return "aerospike-zig/1.0.0";
+    return std.fmt.comptimePrint("{s}/{s}", .{ pkg.pkg_name, pkg.pkg_version });
 }

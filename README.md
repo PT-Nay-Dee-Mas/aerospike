@@ -76,7 +76,7 @@ Add the dependency to your `build.zig.zon` with a single command:
 
 ```sh
 # From your project root (where build.zig.zon lives)
-zig fetch --save https://github.com/PT-Nay-Dee-Mas/aerospike/archive/refs/tags/v1.0.0.tar.gz
+zig fetch --save https://github.com/PT-Nay-Dee-Mas/aerospike/archive/refs/tags/v1.1.0.tar.gz
 ```
 
 Wire the module in your `build.zig`:
@@ -450,6 +450,7 @@ lib.symbols.aero_client_deinit(h);
 | Version | Zig Min | Notable Changes |
 | --- | --- | --- |
 | `1.0.0` | `0.15.2` | Initial CE/EE parity, active/passive failover, C FFI, logging. |
+| `1.1.0` | `0.15.2` | Secret‑safe logging; optional env‑driven schema (namespace/set/TTL/bins/indexes); package name/version sourced from build.zig.zon and surfaced in version APIs |
 
 ## Design Principles
 

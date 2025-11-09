@@ -1,5 +1,6 @@
 const std = @import("std");
 const lib = @import("aerospike");
+const pkg = @import("pkg");
 
 const c_allocator: std.mem.Allocator = std.heap.c_allocator;
 
@@ -12,8 +13,10 @@ const c_allocator: std.mem.Allocator = std.heap.c_allocator;
 // ║   - Success: pointer to static C string                                      ║
 // ║   - Failure: N/A                                                             ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
+var VERSION_BUF: [128]u8 = undefined;
+
 export fn aero_version() [*:0]const u8 {
-    return "aerospike-zig/1.0.0";
+    return std.fmt.bufPrintZ(&VERSION_BUF, "{s}/{s}", .{ pkg.pkg_name, pkg.pkg_version });
 }
 
 // ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -36,7 +39,6 @@ export fn aero_detect_edition(env_key: [*:0]const u8) c_int {
     };
 }
 
-// Opaque client handle for foreign runtimes; pointer is managed by Zig.
 const Client = lib.Client;
 
 // ╔══════════════════════════════════════════════════════════════════════════════╗
@@ -56,7 +58,6 @@ export fn aero_client_init_default() ?*anyopaque {
         return null;
     };
     const ptr = c_allocator.create(Client) catch {
-        // Ensure the partially created client is cleaned if allocation fails.
         client.deinit();
         return null;
     };
