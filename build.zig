@@ -29,17 +29,48 @@ pub fn build(b: *std.Build) void {
     // multiple modules and consumers will need to be able to specify which
     // module they want to access.
     const mod = b.addModule("aerospike", .{
-        // The root source file is the "entry point" of this module. Users of
-        // this module will only be able to access public declarations contained
-        // in this file, which means that if you have declarations that you
-        // intend to expose to consumers that were defined in other files part
-        // of this module, you will have to make sure to re-export them from
-        // the root file.
-        .root_source_file = b.path("src/root.zig"),
-        // Later on we'll use this module as the root module of a test executable
-        // which requires us to specify a target.
+        // Library-first entry point exposing public APIs.
+        .root_source_file = b.path("src/lib.zig"),
         .target = target,
     });
+
+    // Sub-modules as named imports (aliases)
+    const core_mod = b.addModule("aero_core", .{
+        .root_source_file = b.path("src/core/mod.zig"),
+        .target = target,
+    });
+    const config_mod = b.addModule("aero_config", .{
+        .root_source_file = b.path("src/config/mod.zig"),
+        .target = target,
+    });
+    const log_mod = b.addModule("aero_log", .{
+        .root_source_file = b.path("src/log/mod.zig"),
+        .target = target,
+    });
+    const net_mod = b.addModule("aero_net", .{
+        .root_source_file = b.path("src/net/mod.zig"),
+        .target = target,
+    });
+    const util_mod = b.addModule("aero_util", .{
+        .root_source_file = b.path("src/util/mod.zig"),
+        .target = target,
+    });
+
+    // Wire imports so the aerospike module can access sub-modules by name
+    mod.addImport("aero_core", core_mod);
+    mod.addImport("aero_config", config_mod);
+    mod.addImport("aero_log", log_mod);
+    mod.addImport("aero_net", net_mod);
+    mod.addImport("aero_util", util_mod);
+
+    // Also wire cross-dependencies among sub-modules as needed
+    core_mod.addImport("aero_log", log_mod);
+    core_mod.addImport("aero_config", config_mod);
+    core_mod.addImport("aero_net", net_mod);
+    config_mod.addImport("aero_core", core_mod);
+    config_mod.addImport("aero_log", log_mod);
+    net_mod.addImport("aero_log", log_mod);
+    net_mod.addImport("aero_core", core_mod);
 
     // Here we define an executable. An executable needs to have a root module
     // which needs to expose a `main` function. While we could add a main function
@@ -58,28 +89,12 @@ pub fn build(b: *std.Build) void {
     // If neither case applies to you, feel free to delete the declaration you
     // don't need and to put everything under a single module.
     const exe = b.addExecutable(.{
-        .name = "aerospike",
+        .name = "aerospike-cli",
         .root_module = b.createModule(.{
-            // b.createModule defines a new module just like b.addModule but,
-            // unlike b.addModule, it does not expose the module to consumers of
-            // this package, which is why in this case we don't have to give it a name.
             .root_source_file = b.path("src/main.zig"),
-            // Target and optimization levels must be explicitly wired in when
-            // defining an executable or library (in the root module), and you
-            // can also hardcode a specific target for an executable or library
-            // definition if desireable (e.g. firmware for embedded devices).
             .target = target,
             .optimize = optimize,
-            // List of modules available for import in source files part of the
-            // root module.
-            .imports = &.{
-                // Here "aerospike" is the name you will use in your source code to
-                // import this module (e.g. `@import("aerospike")`). The name is
-                // repeated because you are allowed to rename your imports, which
-                // can be extremely useful in case of collisions (which can happen
-                // importing modules from different packages).
-                .{ .name = "aerospike", .module = mod },
-            },
+            .imports = &.{ .{ .name = "aerospike", .module = mod } },
         }),
     });
 
@@ -135,12 +150,50 @@ pub fn build(b: *std.Build) void {
     // A run step that will run the second test executable.
     const run_exe_tests = b.addRunArtifact(exe_tests);
 
+    // Build shared library for cross-language FFI
+    const ffi_mod = b.createModule(.{
+        .root_source_file = b.path("src/ffi/c.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{ .{ .name = "aerospike", .module = mod } },
+    });
+
+    const shared = b.addLibrary(.{
+        .name = "aerospike", // produces libaerospike.{dylib,so}
+        .root_module = ffi_mod,
+        .linkage = .dynamic,
+    });
+    b.installArtifact(shared);
+
+    // Install C header for consumers
+    const install_hdr = b.addInstallFile(b.path("include/aerospike.h"), "include/aerospike.h");
+
+    // Tests from top-level tests/ folder
+    const extra_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/config_test.zig"),
+            .target = target,
+            .optimize = optimize,
+            .imports = &.{
+                .{ .name = "aerospike", .module = mod },
+                .{ .name = "aero_core", .module = core_mod },
+                .{ .name = "aero_config", .module = config_mod },
+                .{ .name = "aero_log", .module = log_mod },
+                .{ .name = "aero_net", .module = net_mod },
+                .{ .name = "aero_util", .module = util_mod },
+            },
+        }),
+    });
+    const run_extra_tests = b.addRunArtifact(extra_tests);
+
     // A top level step for running all tests. dependOn can be called multiple
     // times and since the two run steps do not depend on one another, this will
     // make the two of them run in parallel.
     const test_step = b.step("test", "Run tests");
     test_step.dependOn(&run_mod_tests.step);
     test_step.dependOn(&run_exe_tests.step);
+    test_step.dependOn(&run_extra_tests.step);
+    test_step.dependOn(&install_hdr.step);
 
     // Just like flags, top level steps are also listed in the `--help` menu.
     //
